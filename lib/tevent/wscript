@@ -63,6 +63,10 @@ def configure(conf):
 
     conf.env.disable_python = getattr(Options.options, 'disable_python', False)
 
+    # Disable Python for cross-compilation
+    if conf.env.CROSS_COMPILE:
+        conf.env.disable_python = True
+
     if not conf.env.disable_python:
         # also disable if we don't have the python libs installed
         conf.find_program('python', var='PYTHON')

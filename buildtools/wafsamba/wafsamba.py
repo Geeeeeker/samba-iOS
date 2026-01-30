@@ -693,7 +693,7 @@ def SAMBA_SCRIPT(bld, name, pattern, installdir, installname=None):
         link_dst = os.path.join(tgtdir, os.path.basename(iname))
         if os.path.islink(link_dst) and os.readlink(link_dst) == link_src:
             continue
-        if os.path.exists(link_dst):
+        if os.path.islink(link_dst) or os.path.exists(link_dst):
             os.unlink(link_dst)
         Logs.info("symlink: %s -> %s/%s" % (s, installdir, iname))
         os.symlink(link_src, link_dst)
@@ -728,7 +728,7 @@ sys.path.insert(1, "%s")""" % (task.env["PYTHONARCHDIR"], task.env["PYTHONDIR"])
         installed_file.write(newline)
         lineno = lineno + 1
     installed_file.close()
-    os.chmod(installed_location, 0755)
+    os.chmod(installed_location, 0o755)
     return 0
 
 def copy_and_fix_perl_path(task):
@@ -756,7 +756,7 @@ def copy_and_fix_perl_path(task):
         installed_file.write(newline)
         lineno = lineno + 1
     installed_file.close()
-    os.chmod(installed_location, 0755)
+    os.chmod(installed_location, 0o755)
     return 0
 
 
@@ -884,7 +884,11 @@ def link_display(self):
         return Task.Task.old_display(self)
     fname = self.outputs[0].bldpath(self.env)
     return progress_display(self, 'Linking', fname)
-Task.TaskBase.classes['cc_link'].display = link_display
+# Python 3 compatibility: cc_link may not be in classes dict yet
+try:
+    Task.TaskBase.classes['cc_link'].display = link_display
+except KeyError:
+    pass  # Will be set up later when cc_link is defined
 
 def samba_display(self):
     if Options.options.progress_bar != 0:
@@ -918,8 +922,15 @@ def samba_display(self):
         return progress_display(self, ext_map[ext], fname)
     return Task.Task.old_display(self)
 
-Task.TaskBase.classes['Task'].old_display = Task.TaskBase.classes['Task'].display
-Task.TaskBase.classes['Task'].display = samba_display
+# Python 3 compatibility: Task class may not be in classes dict
+try:
+    Task.TaskBase.classes['Task'].old_display = Task.TaskBase.classes['Task'].display
+    Task.TaskBase.classes['Task'].display = samba_display
+except KeyError:
+    # In newer waf/python, try direct assignment
+    if hasattr(Task, 'Task'):
+        Task.Task.old_display = Task.Task.display
+        Task.Task.display = samba_display
 
 
 @after('apply_link')

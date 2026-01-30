@@ -36,6 +36,10 @@
 #include "system/time.h"
 #include "system/filesys.h"
 #include "ldb.h"
+
+#ifdef __APPLE__
+#include <TargetConditionals.h>
+#endif
 #include "tools/cmdline.h"
 #include "tools/ldbutil.h"
 
@@ -257,7 +261,14 @@ static int do_edit(struct ldb_context *ldb, struct ldb_message **msgs1,
 	}
 
 	/* run the editor */
-	ret = popen(cmd, "r");
+#if defined(__APPLE__) && (TARGET_OS_IOS || TARGET_OS_TV || TARGET_OS_WATCH || TARGET_OS_SIMULATOR)
+	/* system() is unavailable on iOS/tvOS/watchOS */
+	(void)cmd;
+	ret = -1;
+	fprintf(stderr, "ldbedit: system() not available on this platform\n");
+#else
+	ret = system(cmd);
+#endif
 	talloc_free(cmd);
 
 	if (ret != 0) {

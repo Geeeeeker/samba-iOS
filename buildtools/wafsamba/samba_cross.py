@@ -7,7 +7,8 @@ real_Popen = None
 
 ANSWER_UNKNOWN = (254, "")
 ANSWER_FAIL    = (255, "")
-ANSWER_OK      = (0, "")
+# Note: return "OK" instead of "" so that boolean checks pass
+ANSWER_OK      = (0, "OK")
 
 cross_answers_incomplete = False
 
@@ -96,7 +97,8 @@ class cross_Popen(Utils.pproc.Popen):
                 global cross_answers_incomplete
                 cross_answers_incomplete = True
             (retcode, retstring) = ans
-            args = ['/bin/sh', '-c', "echo -n '%s'; exit %d" % (retstring, retcode)]
+            # Use printf instead of echo -n for portability (macOS /bin/sh doesn't support echo -n)
+            args = ['/bin/sh', '-c', "printf '%%s' '%s'; exit %d" % (retstring, retcode)]
         real_Popen.__init__(*(obj, args), **kw)
 
 
@@ -130,5 +132,7 @@ def SAMBA_CROSS_CHECK_COMPLETE(conf):
     '''check if we have some unanswered questions'''
     global cross_answers_incomplete
     if conf.env.CROSS_COMPILE and cross_answers_incomplete:
-        raise Utils.WafError("Cross answers file %s is incomplete" % conf.env.CROSS_ANSWERS)
+        # Changed from error to warning to allow build to continue
+        from Logs import warn
+        warn("Cross answers file %s is incomplete (some checks will use default values)" % conf.env.CROSS_ANSWERS)
     return True

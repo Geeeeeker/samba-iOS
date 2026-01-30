@@ -9,9 +9,18 @@ from Configure import conf
 @conf
 def SAMBA_CHECK_PYTHON(conf, mandatory=True):
     # enable tool to build python extensions
-    conf.find_program('python', var='PYTHON', mandatory=mandatory)
+    # Try python3 first, then python for compatibility
+    import os
+    path_python = None
+    try:
+        conf.find_program('python3', var='PYTHON', mandatory=False)
+        path_python = conf.find_program('python3', mandatory=False)
+    except:
+        pass
+    if path_python is None or not os.path.exists(str(path_python)):
+        conf.find_program('python', var='PYTHON', mandatory=mandatory)
+        path_python = conf.find_program('python', mandatory=mandatory)
     conf.check_tool('python')
-    path_python = conf.find_program('python')
     conf.env.PYTHON_SPECIFIED = (conf.env.PYTHON != path_python)
     conf.check_python_version((2,4,2))
 
@@ -36,6 +45,10 @@ def SAMBA_PYTHON(bld, name,
                  vars=None,
                  enabled=True):
     '''build a python extension for Samba'''
+
+    # Skip building Python extensions when Python is disabled (e.g., cross-compilation)
+    if bld.env.disable_python:
+        return
 
     # when we support static python modules we'll need to gather
     # the list from all the SAMBA_PYTHON() targets

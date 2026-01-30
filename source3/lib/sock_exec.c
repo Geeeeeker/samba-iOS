@@ -20,6 +20,20 @@
 
 #include "includes.h"
 
+#ifdef __APPLE__
+#include <TargetConditionals.h>
+#endif
+
+#if defined(__APPLE__) && (TARGET_OS_IOS || TARGET_OS_TV || TARGET_OS_WATCH || TARGET_OS_SIMULATOR)
+/* fork() and popen() are unavailable on iOS - stub this testing function */
+int sock_exec(const char *prog)
+{
+	(void)prog;
+	DEBUG(0, ("sock_exec: not available on iOS\n"));
+	return -1;
+}
+#else
+
 /*******************************************************************
 this is like socketpair but uses tcp. It is used by the Samba
 regression test code
@@ -116,3 +130,4 @@ int sock_exec(const char *prog)
 	close(fd[1]);
 	return fd[0];
 }
+#endif /* iOS platform check */

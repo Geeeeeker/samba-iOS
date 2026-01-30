@@ -60,52 +60,52 @@ psdir, ps documentation, ${DOCDIR}
 '''.split('\n') if x]
 
 def detect(conf):
-	def get_param(varname, default):
-		return getattr(Options.options, varname, '') or default
+    def get_param(varname, default):
+        return getattr(Options.options, varname, '') or default
 
-	env = conf.env
-	env['EXEC_PREFIX'] = get_param('EXEC_PREFIX', env['PREFIX'])
-	env['PACKAGE'] = Utils.g_module.APPNAME
+    env = conf.env
+    env['EXEC_PREFIX'] = get_param('EXEC_PREFIX', env['PREFIX'])
+    env['PACKAGE'] = Utils.g_module.APPNAME
 
-	complete = False
-	iter = 0
-	while not complete and iter < len(_options) + 1:
-		iter += 1
-		complete = True
-		for name, help, default in _options:
-			name = name.upper()
-			if not env[name]:
-				try:
-					env[name] = Utils.subst_vars(get_param(name, default), env)
-				except TypeError:
-					complete = False
-	if not complete:
-		lst = [name for name, _, _ in _options if not env[name.upper()]]
-		raise Utils.WafError('Variable substitution failure %r' % lst)
+    complete = False
+    iter = 0
+    while not complete and iter < len(_options) + 1:
+        iter += 1
+        complete = True
+        for name, help, default in _options:
+            name = name.upper()
+            if not env[name]:
+                try:
+                    env[name] = Utils.subst_vars(get_param(name, default), env)
+                except TypeError:
+                    complete = False
+    if not complete:
+        lst = [name for name, _, _ in _options if not env[name.upper()]]
+        raise Utils.WafError('Variable substitution failure %r' % lst)
 
 def set_options(opt):
 
-	inst_dir = opt.add_option_group('Installation directories',
+    inst_dir = opt.add_option_group('Installation directories',
 'By default, "waf install" will put the files in\
  "/usr/local/bin", "/usr/local/lib" etc. An installation prefix other\
  than "/usr/local" can be given using "--prefix", for example "--prefix=$HOME"')
 
-	for k in ('--prefix', '--destdir'):
-		option = opt.parser.get_option(k)
-		if option:
-			opt.parser.remove_option(k)
-			inst_dir.add_option(option)
+    for k in ('--prefix', '--destdir'):
+        option = opt.parser.get_option(k)
+        if option:
+            opt.parser.remove_option(k)
+            inst_dir.add_option(option)
 
-	inst_dir.add_option('--exec-prefix',
-		help = 'installation prefix [Default: ${PREFIX}]',
-		default = '',
-		dest = 'EXEC_PREFIX')
+    inst_dir.add_option('--exec-prefix',
+        help = 'installation prefix [Default: ${PREFIX}]',
+        default = '',
+        dest = 'EXEC_PREFIX')
 
-	dirs_options = opt.add_option_group('Pre-defined installation directories', '')
+    dirs_options = opt.add_option_group('Pre-defined installation directories', '')
 
-	for name, help, default in _options:
-		option_name = '--' + name
-		str_default = default
-		str_help = '%s [Default: %s]' % (help, str_default)
-		dirs_options.add_option(option_name, help=str_help, default='', dest=name.upper())
+    for name, help, default in _options:
+        option_name = '--' + name
+        str_default = default
+        str_help = '%s [Default: %s]' % (help, str_default)
+        dirs_options.add_option(option_name, help=str_help, default='', dest=name.upper())
 

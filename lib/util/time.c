@@ -50,7 +50,7 @@ a gettimeofday wrapper
 **/
 _PUBLIC_ void GetTimeOfDay(struct timeval *tval)
 {
-#ifdef HAVE_GETTIMEOFDAY_TZ
+#if defined(HAVE_GETTIMEOFDAY_TZ) || defined(__APPLE__)
 	gettimeofday(tval,NULL);
 #else
 	gettimeofday(tval);

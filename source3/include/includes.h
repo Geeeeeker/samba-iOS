@@ -22,6 +22,16 @@
 
 #include "../replace/replace.h"
 
+/* iOS/tvOS/watchOS don't have NIS/YP support */
+#ifdef __APPLE__
+#include <TargetConditionals.h>
+#if TARGET_OS_IOS || TARGET_OS_TV || TARGET_OS_WATCH || TARGET_OS_SIMULATOR
+#undef HAVE_NETGROUP
+#undef HAVE_RPCSVC_YP_PROT_H
+#undef HAVE_RPCSVC_YPCLNT_H
+#endif
+#endif
+
 /* make sure we have included the correct config.h */
 #ifndef NO_CONFIG_H /* for some tests */
 #ifndef CONFIG_H_IS_FROM_SAMBA
@@ -91,8 +101,20 @@
 #include <rpc/rpc.h>
 #endif
 
+/* iOS/tvOS/watchOS don't have NIS/YP support - disable NETGROUP */
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#if TARGET_OS_IOS || TARGET_OS_TV || TARGET_OS_WATCH || TARGET_OS_SIMULATOR
+/* NIS/YP not available on iOS platforms */
+#else
 #if defined(HAVE_YP_GET_DEFAULT_DOMAIN) && defined(HAVE_SETNETGRENT) && defined(HAVE_ENDNETGRENT) && defined(HAVE_GETNETGRENT)
 #define HAVE_NETGROUP 1
+#endif
+#endif
+#else
+#if defined(HAVE_YP_GET_DEFAULT_DOMAIN) && defined(HAVE_SETNETGRENT) && defined(HAVE_ENDNETGRENT) && defined(HAVE_GETNETGRENT)
+#define HAVE_NETGROUP 1
+#endif
 #endif
 
 #if defined (HAVE_NETGROUP)

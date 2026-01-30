@@ -19,8 +19,8 @@
 #
 #  $
 #  $ source4/scripting/devel/repl_cleartext_pwd.py \
-#  	-Uadministrator%A1b2C3d4 \
-#  	172.31.9.219 DC=bla,DC=base /tmp/cookie cleartext_utf8 131085 displayName
+#      -Uadministrator%A1b2C3d4 \
+#      172.31.9.219 DC=bla,DC=base /tmp/cookie cleartext_utf8 131085 displayName
 #  # starting at usn[0]
 #  dn: CN=Test User1,CN=Users,DC=bla,DC=base
 #  cleartext_utf8: A1b2C3d4
@@ -29,8 +29,8 @@
 #  # up to usn[16449]
 #  $
 #  $ source4/scripting/devel/repl_cleartext_pwd.py \
-#  	-Uadministrator%A1b2C3d4
-#  	172.31.9.219 DC=bla,DC=base cookie_file cleartext_utf8 131085 displayName
+#      -Uadministrator%A1b2C3d4
+#      172.31.9.219 DC=bla,DC=base cookie_file cleartext_utf8 131085 displayName
 #  # starting at usn[16449]
 #  # up to usn[16449]
 #  $

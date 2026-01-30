@@ -43,6 +43,10 @@ def configure(conf):
 
     conf.env.disable_python = getattr(Options.options, 'disable_python', False)
 
+    # Disable Python for cross-compilation
+    if conf.env.CROSS_COMPILE:
+        conf.env.disable_python = True
+
     if not conf.env.standalone_talloc:
         if conf.CHECK_BUNDLED_SYSTEM_PKG('talloc', minversion=VERSION,
                                      implied_deps='replace'):

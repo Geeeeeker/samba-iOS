@@ -17,20 +17,20 @@ cls.install = Utils.nada
 # remove the output in case it already exists
 old = cls.run
 def wrap(self):
-	try: os.remove(self.outputs[0].abspath(self.env))
-	except OSError: pass
-	return old(self)
+    try: os.remove(self.outputs[0].abspath(self.env))
+    except OSError: pass
+    return old(self)
 setattr(cls, 'run', wrap)
 
 def detect(conf):
-	conf.find_program('ar', var='AR')
-	conf.find_program('ranlib', var='RANLIB')
-	conf.env.ARFLAGS = 'rcs'
+    conf.find_program('ar', var='AR')
+    conf.find_program('ranlib', var='RANLIB')
+    conf.env.ARFLAGS = 'rcs'
 
 @conftest
 def find_ar(conf):
-	v = conf.env
-	conf.check_tool('ar')
-	if not v['AR']: conf.fatal('ar is required for static libraries - not found')
+    v = conf.env
+    conf.check_tool('ar')
+    if not v['AR']: conf.fatal('ar is required for static libraries - not found')
 
 

@@ -112,7 +112,7 @@ class Renderer(object):
         self.output.seek(where)
         self.output.truncate()
         keys_to_delete = []
-        for k, v in self.compress.iteritems():
+        for k, v in self.compress.items():
             if v >= where:
                 keys_to_delete.append(k)
         for k in keys_to_delete:

@@ -235,14 +235,14 @@ main() {
  */
 int main(int argc, char **argv)
 {
-	char * version;
-	dm_eventset_t events;
-	/* This doesn't take an argument on IRIX 6.4. */
-	dm_init_service(&version);
-	/* IRIX 6.4 expects events to be a pointer. */
-	DMEV_ISSET(DM_EVENT_READ, events);
+        char * version;
+        dm_eventset_t events;
+        /* This doesn't take an argument on IRIX 6.4. */
+        dm_init_service(&version);
+        /* IRIX 6.4 expects events to be a pointer. */
+        DMEV_ISSET(DM_EVENT_READ, events);
 
-	return 0;
+        return 0;
 }
 ''',
             'USEABLE_DMAPI_LIBRARY',
@@ -277,18 +277,18 @@ int main(int argc, char **argv)
                                 headers='sys/types.h sys/stat.h unistd.h')
 
     if "HAVE_BLKCNT_T" in conf.env:
-	conf.CHECK_CODE('''
-	return sizeof(blkcnt_t) == 4 ? 0 : 1''',
-		'SIZEOF_BLKCNT_T_4', execute=True,
-		headers='replace.h sys/types.h sys/stat.h unistd.h',
-		msg="Checking whether blkcnt_t is 32 bit")
+        conf.CHECK_CODE('''
+        return sizeof(blkcnt_t) == 4 ? 0 : 1''',
+                'SIZEOF_BLKCNT_T_4', execute=True,
+                headers='replace.h sys/types.h sys/stat.h unistd.h',
+                msg="Checking whether blkcnt_t is 32 bit")
 
     if "HAVE_BLKCNT_T" in conf.env:
-	conf.CHECK_CODE('''
-	return sizeof(blkcnt_t) == 8 ? 0 : 1''',
-		'SIZEOF_BLKCNT_T_8', execute=True,
-		headers='replace.h sys/types.h sys/stat.h unistd.h',
-		msg="Checking whether blkcnt_t is 64 bit")
+        conf.CHECK_CODE('''
+        return sizeof(blkcnt_t) == 8 ? 0 : 1''',
+                'SIZEOF_BLKCNT_T_8', execute=True,
+                headers='replace.h sys/types.h sys/stat.h unistd.h',
+                msg="Checking whether blkcnt_t is 64 bit")
 
     # Check for POSIX capability support
     conf.CHECK_FUNCS_IN('cap_get_proc', 'cap', headers='sys/capability.h')
@@ -426,29 +426,29 @@ int i; i = prtcl(0);
         conf.DEFINE('STAT_ST_BLOCKSIZE', '512')
 
     if Options.options.with_acl_support:
-	if (host_os.rfind('sysv5') > -1) and conf.CHECK_FUNCS_IN('sec', 'facl', checklibc=True):
-		Logs.info('Using UnixWare ACLs')
+        if (host_os.rfind('sysv5') > -1) and conf.CHECK_FUNCS_IN('sec', 'facl', checklibc=True):
+                Logs.info('Using UnixWare ACLs')
                 conf.DEFINE('HAVE_UNIXWARE_ACLS',1)
                 default_static_modules.extend(TO_LIST('vfs_solarisacl'))
-	elif (host_os.rfind('solaris') > -1) and conf.CHECK_FUNCS_IN('sec', 'facl'):
-		Logs.info('Using solaris ACLs')
+        elif (host_os.rfind('solaris') > -1) and conf.CHECK_FUNCS_IN('sec', 'facl'):
+                Logs.info('Using solaris ACLs')
                 conf.DEFINE('HAVE_SOLARIS_ACLS',1)
                 default_static_modules.extend(TO_LIST('vfs_solarisacl'))
-	elif (host_os.rfind('hpux') > -1):
-		Logs.info('Using HPUX ACLs')
+        elif (host_os.rfind('hpux') > -1):
+                Logs.info('Using HPUX ACLs')
                 conf.DEFINE('HAVE_HPUX_ACLS',1)
                 conf.DEFINE('POSIX_ACL_NEEDS_MASK',1)
                 default_static_modules.extend(TO_LIST('vfs_hpuxacl'))
-	elif (host_os.rfind('irix') > -1):
-		Logs.info('Using IRIX ACLs')
+        elif (host_os.rfind('irix') > -1):
+                Logs.info('Using IRIX ACLs')
                 conf.DEFINE('HAVE_IRIX_ACLS',1)
                 default_static_modules.extend(TO_LIST('vfs_irixacl'))
-	elif (host_os.rfind('aix') > -1):
-		Logs.info('Using AIX ACLs')
+        elif (host_os.rfind('aix') > -1):
+                Logs.info('Using AIX ACLs')
                 conf.DEFINE('HAVE_AIX_ACLS',1)
                 default_static_modules.extend(TO_LIST('vfs_aixacl'))
-	elif (host_os.rfind('osf') > -1) and conf.CHECK_FUNCS_IN('pacl', 'acl_get_fd'):
-		Logs.info('Using Tru64 ACLs')
+        elif (host_os.rfind('osf') > -1) and conf.CHECK_FUNCS_IN('pacl', 'acl_get_fd'):
+                Logs.info('Using Tru64 ACLs')
                 conf.DEFINE('HAVE_TRU64_ACLS',1)
                 default_static_modules.extend(TO_LIST('vfs_tru64acl'))
         elif (host_os.rfind('darwin') > -1):
@@ -498,9 +498,9 @@ return acl_get_perm_np(permset_d, perm);
     conf.CHECK_DECLS('readahead', headers='fcntl.h', always=True)
 
     conf.CHECK_CODE('int fd = openat(AT_FDCWD, ".", O_RDONLY);',
-		'HAVE_OPENAT',
-		msg='Checking for openat',
-		headers='fcntl.h')
+                'HAVE_OPENAT',
+                msg='Checking for openat',
+                headers='fcntl.h')
 
     if Options.options.with_aio_support:
         conf.CHECK_FUNCS_IN('aio_read', 'aio')
@@ -524,8 +524,8 @@ return acl_get_perm_np(permset_d, perm);
         conf.DEFINE('HAVE_NO_AIO', '1')
 
     if host_os.rfind('linux') > -1:
-	conf.CHECK_FUNCS_IN('io_submit', 'aio')
-	conf.CHECK_CODE('''
+        conf.CHECK_FUNCS_IN('io_submit', 'aio')
+        conf.CHECK_CODE('''
 struct io_event ioev;
 struct iocb *ioc;
 io_context_t ctx;
@@ -541,10 +541,10 @@ io_set_callback(ioc, (io_callback_t)(0));
 io_submit(ctx, 1, &ioc);
 io_getevents(ctx, 1, 1, &ioev, &ts);
 ''',
-			'HAVE_LINUX_KERNEL_AIO',
-			msg='Checking for linux kernel asynchronous io support',
-			headers='unistd.h stdlib.h sys/types.h fcntl.h sys/eventfd.h libaio.h',
-			lib='aio')
+                        'HAVE_LINUX_KERNEL_AIO',
+                        msg='Checking for linux kernel asynchronous io support',
+                        headers='unistd.h stdlib.h sys/types.h fcntl.h sys/eventfd.h libaio.h',
+                        lib='aio')
 
     conf.CHECK_CODE('''
 struct msghdr msg;
@@ -1249,7 +1249,7 @@ main() {
                             hdr.trl_cnt = 0;
                             hdtrl.iov_base = (void *)0;
                             hdtrl.iov_len = 0;
-			    ret = sendfile(fromfd, tofd, offset, &nwritten, &hdr, 0);
+                            ret = sendfile(fromfd, tofd, offset, &nwritten, &hdr, 0);
                             ''',
                             '_HAVE_SENDFILE',
                             msg='Checking for darwin sendfile support')
@@ -1734,8 +1734,8 @@ main() {
                                       auth_script vfs_readahead vfs_xattr_tdb vfs_posix_eadb
                                       vfs_streams_xattr vfs_streams_depot vfs_acl_xattr vfs_acl_tdb
                                       vfs_smb_traffic_analyzer vfs_preopen vfs_catia vfs_scannedonly
-				      vfs_media_harmony
-				      vfs_commit
+                                      vfs_media_harmony
+                                      vfs_commit
                                       vfs_crossrename vfs_linux_xfs_sgid
                                       vfs_time_audit idmap_autorid idmap_tdb2
                                       idmap_rid idmap_hash'''))
@@ -1781,7 +1781,7 @@ main() {
         default_static_modules.extend(TO_LIST('charset_macosxfs'))
 
     if conf.CONFIG_SET('HAVE_GPFS'):
-	default_shared_modules.extend(TO_LIST('vfs_gpfs'))
+        default_shared_modules.extend(TO_LIST('vfs_gpfs'))
 
     if conf.CONFIG_SET('SAMBA_FAM_LIBS'):
         default_shared_modules.extend(TO_LIST('vfs_notify_fam'))

@@ -407,13 +407,13 @@ static void process_file(struct vfs_state *pvfs, char *filename) {
 	}
 }
 
-static void vfstest_exit_server(const char * const reason)
+_NORETURN_ static void vfstest_exit_server(const char * const reason)
 {
 	DEBUG(3,("Server exit (%s)\n", (reason ? reason : "")));
 	exit(0);
 }
 
-static void vfstest_exit_server_cleanly(const char * const reason)
+_NORETURN_ static void vfstest_exit_server_cleanly(const char * const reason)
 {
 	vfstest_exit_server("normal exit");
 }

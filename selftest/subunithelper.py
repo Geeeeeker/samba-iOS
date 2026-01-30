@@ -232,7 +232,7 @@ def read_test_regexes(name):
 
 
 def find_in_list(regexes, fullname):
-    for regex, reason in regexes.iteritems():
+    for regex, reason in regexes.items():
         if re.match(regex, fullname):
             if reason is None:
                 return ""

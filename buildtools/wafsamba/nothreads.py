@@ -44,7 +44,7 @@ def process(tsk):
         if tsk.__class__.stat: ret = tsk.__class__.stat(tsk)
         # actual call to task's run() function
         else: ret = tsk.call_run()
-    except Exception, e:
+    except Exception as e:
         tsk.err_msg = Utils.ex_stack()
         tsk.hasrun = EXCEPTION
 
@@ -178,7 +178,7 @@ class Parallel(object):
 
             try:
                 st = tsk.runnable_status()
-            except Exception, e:
+            except Exception as e:
                 self.processed += 1
                 if self.stop and not Options.options.keep:
                     tsk.hasrun = SKIPPED

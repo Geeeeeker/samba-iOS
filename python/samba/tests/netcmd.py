@@ -43,7 +43,7 @@ class NetCmdTestCase(samba.tests.TestCase):
             yield path, cmd
             subcmds = getattr(cmd, "subcommands", {})
             todo.extend([(path + " " + k, v) for (k, v) in
-                subcmds.iteritems()])
+                subcmds.items()])
 
 
 class TestParmTests(NetCmdTestCase):

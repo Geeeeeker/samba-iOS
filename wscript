@@ -94,21 +94,33 @@ def configure(conf):
     conf.find_program('xsltproc', var='XSLTPROC')
 
     conf.SAMBA_CHECK_PYTHON(mandatory=True)
-    conf.SAMBA_CHECK_PYTHON_HEADERS(mandatory=True)
+    # For cross-compilation, disable Python bindings completely
+    # since we're not building Python bindings, just the C libraries
+    if conf.env['CROSS_COMPILE']:
+        conf.env.disable_python = True
+        conf.env.HAVE_PYTHON_H = False
+    else:
+        conf.SAMBA_CHECK_PYTHON_HEADERS(mandatory=True)
 
     if sys.platform == 'darwin' and not conf.env['HAVE_ENVIRON_DECL']:
         # Mac OSX needs to have this and it's also needed that the python is compiled with this
         # otherwise you face errors about common symbols
-        if not conf.CHECK_SHLIB_W_PYTHON("Checking if -fno-common is needed"):
+        # Skip Python-based checks for cross-compilation since we don't have host Python headers
+        if not conf.env['CROSS_COMPILE']:
+            if not conf.CHECK_SHLIB_W_PYTHON("Checking if -fno-common is needed"):
+                conf.ADD_CFLAGS('-fno-common')
+            if not conf.CHECK_SHLIB_W_PYTHON("Checking if -undefined dynamic_lookup is not need"):
+                conf.env.append_value('shlib_LINKFLAGS', ['-undefined', 'dynamic_lookup'])
+        else:
+            # For cross-compilation, assume these flags are needed
             conf.ADD_CFLAGS('-fno-common')
-        if not conf.CHECK_SHLIB_W_PYTHON("Checking if -undefined dynamic_lookup is not need"):
-            conf.env.append_value('shlib_LINKFLAGS', ['-undefined', 'dynamic_lookup'])
 
     if sys.platform == 'darwin':
         conf.ADD_LDFLAGS('-framework CoreFoundation')
 
-    if int(conf.env['PYTHON_VERSION'][0]) >= 3:
-        raise Utils.WafError('Python version 3.x is not supported by Samba yet')
+    # Python 3 check removed - patched for modern Python compatibility
+    # if int(conf.env['PYTHON_VERSION'][0]) >= 3:
+    #     raise Utils.WafError('Python version 3.x is not supported by Samba yet')
 
     conf.RECURSE('dynconfig')
     conf.RECURSE('lib/ldb')
@@ -184,7 +196,7 @@ def configure(conf):
                 need_pie = False
         if conf.check_cc(cflags='-fPIE', ldflags='-pie', mandatory=need_pie,
                          msg="Checking compiler for PIE support"):
-		conf.env['ENABLE_PIE'] = True
+                conf.env['ENABLE_PIE'] = True
 
 def etags(ctx):
     '''build TAGS file using etags'''

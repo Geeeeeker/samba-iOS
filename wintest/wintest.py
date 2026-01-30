@@ -362,34 +362,34 @@ nameserver %s
 
         self.write_file("etc/named.conf", '''
 options {
-	listen-on port 53 { ${NAMED_INTERFACE_IP};  };
-	${BIND_LISTEN_IPV6}
-	directory 	"${PREFIX}/var/named";
-	dump-file 	"${PREFIX}/var/named/data/cache_dump.db";
-	pid-file 	"${PREFIX}/var/named/named.pid";
+    listen-on port 53 { ${NAMED_INTERFACE_IP};  };
+    ${BIND_LISTEN_IPV6}
+    directory     "${PREFIX}/var/named";
+    dump-file     "${PREFIX}/var/named/data/cache_dump.db";
+    pid-file     "${PREFIX}/var/named/named.pid";
         statistics-file "${PREFIX}/var/named/data/named_stats.txt";
         memstatistics-file "${PREFIX}/var/named/data/named_mem_stats.txt";
-	allow-query     { any; };
-	recursion yes;
-	${NAMED_TKEY_OPTION}
+    allow-query     { any; };
+    recursion yes;
+    ${NAMED_TKEY_OPTION}
         max-cache-ttl 10;
         max-ncache-ttl 10;
 
-	forward only;
-	forwarders {
-		  ${DNSSERVER};
-	};
+    forward only;
+    forwarders {
+          ${DNSSERVER};
+    };
 
 };
 
 key "rndc-key" {
-	algorithm hmac-md5;
-	secret "lA/cTrno03mt5Ju17ybEYw==";
+    algorithm hmac-md5;
+    secret "lA/cTrno03mt5Ju17ybEYw==";
 };
 
 controls {
-	inet ${NAMED_INTERFACE_IP} port 953
-	allow { any; } keys { "rndc-key"; };
+    inet ${NAMED_INTERFACE_IP} port 953
+    allow { any; } keys { "rndc-key"; };
 };
 
 ${NAMED_INCLUDE}
@@ -429,14 +429,14 @@ zone "%s" IN {
         self.write_file("etc/rndc.conf", '''
 # Start of rndc.conf
 key "rndc-key" {
-	algorithm hmac-md5;
-	secret "lA/cTrno03mt5Ju17ybEYw==";
+    algorithm hmac-md5;
+    secret "lA/cTrno03mt5Ju17ybEYw==";
 };
 
 options {
-	default-key "rndc-key";
-	default-server  ${NAMED_INTERFACE_IP};
-	default-port 953;
+    default-key "rndc-key";
+    default-server  ${NAMED_INTERFACE_IP};
+    default-port 953;
 };
 ''')
 

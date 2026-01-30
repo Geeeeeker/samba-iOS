@@ -2,7 +2,7 @@
 ##
 ##  smb.conf parameter classes
 ##
-##  Copyright (C) Gerald Carter		       2004.
+##  Copyright (C) Gerald Carter               2004.
 ##
 ##  This program is free software; you can redistribute it and/or modify
 ##  it under the terms of the GNU General Public License as published by
@@ -24,60 +24,60 @@ import string
 #####################################################################
 ## Base class for Samba smb.conf parameters
 class SambaParm :
-	def __init__( self ) :
-		pass
+    def __init__( self ) :
+        pass
 
-	def StringValue( self ) :
-		return self.value
+    def StringValue( self ) :
+        return self.value
 
 #####################################################################
 ## Boolean smb,conf parm
 class SambaParmBool( SambaParm ):
-	def __init__( self, value ) :
-		x = string.upper(value)
-		self.valid = True
-		
-		if x=="YES" or x=="TRUE" or x=="1":
-			self.value = True
-		elif x=="NO" or x=="FALSE" or x=="0":
-			self.value = False
-		else:
-			self.valid = False
-			return self
+    def __init__( self, value ) :
+        x = string.upper(value)
+        self.valid = True
+        
+        if x=="YES" or x=="TRUE" or x=="1":
+            self.value = True
+        elif x=="NO" or x=="FALSE" or x=="0":
+            self.value = False
+        else:
+            self.valid = False
+            return self
 
-	def SetValue( self, value ) :
-		x = string.upper(value)
-		self.valid = True
-		
-		if x=="YES" or x=="TRUE" or x=="1":
-			self.value = True
-		elif x=="NO" or x=="FALSE" or x=="0":
-			self.value = False
-		else:
-			self.valid = False
-			return
-			
-	def StringValue( self ) :
-		if  self.value :
-			return "yes"
-		else:
-			return "no"
-			
+    def SetValue( self, value ) :
+        x = string.upper(value)
+        self.valid = True
+        
+        if x=="YES" or x=="TRUE" or x=="1":
+            self.value = True
+        elif x=="NO" or x=="FALSE" or x=="0":
+            self.value = False
+        else:
+            self.valid = False
+            return
+            
+    def StringValue( self ) :
+        if  self.value :
+            return "yes"
+        else:
+            return "no"
+            
 #####################################################################
 ## Boolean smb,conf parm (inverts)
 class SambaParmBoolRev( SambaParmBool ) :
-	def __init__( self, value ):
-		SambaParmBool.__init__( self, value )
-		if self.valid :
-			self.value = not self.value
-			
+    def __init__( self, value ):
+        SambaParmBool.__init__( self, value )
+        if self.valid :
+            self.value = not self.value
+            
 
 #####################################################################
 ## string smb.conf parms
 class SambaParmString( SambaParm ):
-	def __init__( self, value ):
-		self.value = value
-		self.valid = True
+    def __init__( self, value ):
+        self.value = value
+        self.valid = True
 
 
 

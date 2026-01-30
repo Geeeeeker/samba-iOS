@@ -13,8 +13,8 @@ def set_krb5_conf(t):
     t.run_cmd("mkdir -p ${PREFIX}/etc")
     t.write_file("${PREFIX}/etc/krb5.conf", 
                     '''[libdefaults]
-	dns_lookup_realm = false
-	dns_lookup_kdc = true''')
+    dns_lookup_realm = false
+    dns_lookup_kdc = true''')
 
     t.putenv("KRB5_CONFIG", '${PREFIX}/etc/krb5.conf')
 
@@ -128,8 +128,8 @@ def prep_join_as_member(t, vm):
     t.del_files(["var", "private"])
     t.write_file("etc/smb.conf", '''
 [global]
-	netbios name = ${HOSTNAME}
-	log level = ${DEBUGLEVEL}
+    netbios name = ${HOSTNAME}
+    log level = ${DEBUGLEVEL}
         realm = ${WIN_REALM}
         workgroup = ${WIN_DOMAIN}
         security = ADS

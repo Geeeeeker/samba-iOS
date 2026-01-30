@@ -102,7 +102,7 @@ def buildScript(buf, sections, group, user, ostype, machine, debug, pause):
     # replacements.
     # 
     macros = {
-        		'U': user,
+                'U': user,
                 'G': group,
                 'a': ostype,
                 'm': machine
@@ -133,7 +133,7 @@ def buildScript(buf, sections, group, user, ostype, machine, debug, pause):
             elif s == 'OS':
                 hdrstring = '\[ *' + s + ' *- *' + ostype + ' *\]'
             elif s == 'Machine':
-	        hdrstring = '\[ *' + s + ' *- *' + machine + ' *\]'
+            hdrstring = '\[ *' + s + ' *- *' + machine + ' *\]'
 
             #
             # See if we have found a section header
@@ -176,8 +176,8 @@ def buildScript(buf, sections, group, user, ostype, machine, debug, pause):
                         vardef = re.match(r'(.*)=(.*)', line)
 
                         if vardef:
-                            varname = string.strip(vardef.group(1))		# Strip leading and
-                            varsub  = string.strip(vardef.group(2))		# and trailing spaces
+                            varname = string.strip(vardef.group(1))        # Strip leading and
+                            varsub  = string.strip(vardef.group(2))        # and trailing spaces
 
                             if varname == '':
                                 print "Error: No substition name specified line: %d" % idx
@@ -241,12 +241,12 @@ def run():
     group       = ''                    # Default group
     user        = ''                    # Default user
     ostype      = ''                    # Default os
-    machine     = ''			# Default machine type
+    machine     = ''            # Default machine type
     outfile     = 'logon.bat'           # Default batch file name
                                         #   this file name WILL take on the form
                                         #   username.bat if a username is specified
     debug       = 0                     # Default debugging mode
-    pause		= 0						# Default pause mode
+    pause        = 0                        # Default pause mode
     outdir      = '/usr/local/samba/netlogon/'   # Default netlogon directory
 
     sections    = ['Global', 'Machine', 'OS', 'Group', 'User'] # Currently supported
@@ -353,9 +353,9 @@ def run():
         for ln in script:
             oFile.write(ln + '\r\n')
             if pause:
-                if string.strip(ln) != '':			# Because whitespace
-                    oFile.write('pause' + '\r\n')	# is a useful tool, we
-                    								# don't put pauses after
+                if string.strip(ln) != '':            # Because whitespace
+                    oFile.write('pause' + '\r\n')    # is a useful tool, we
+                                                    # don't put pauses after
                                                     # an empty line.
 
 

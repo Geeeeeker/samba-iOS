@@ -72,7 +72,7 @@ def write_clientconf(conffile, clientdir, vars):
     f = open(conffile, 'w')
     try:
         f.write("[global]\n")
-        for item in settings.iteritems():
+        for item in settings.items():
             f.write("\t%s = %s\n" % item)
     finally:
         f.close()

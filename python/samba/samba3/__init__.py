@@ -80,7 +80,7 @@ class Registry(TdbDatabase):
 
     def keys(self):
         """Return list with all the keys."""
-        return [k.rstrip("\x00") for k in self.tdb.iterkeys() if not k.startswith(REGISTRY_VALUE_PREFIX)]
+        return [k.rstrip("\x00") for k in self.tdb.keys() if not k.startswith(REGISTRY_VALUE_PREFIX)]
 
     def subkeys(self, key):
         """Retrieve the subkeys for the specified key.
@@ -143,7 +143,7 @@ class IdmapDatabase(TdbDatabase):
 
     def ids(self):
         """Retrieve a list of all ids in this database."""
-        for k in self.tdb.iterkeys():
+        for k in self.tdb.keys():
             if k.startswith(IDMAP_USER_PREFIX):
                 yield k.rstrip("\0").split(" ")
             if k.startswith(IDMAP_GROUP_PREFIX):
@@ -151,13 +151,13 @@ class IdmapDatabase(TdbDatabase):
 
     def uids(self):
         """Retrieve a list of all uids in this database."""
-        for k in self.tdb.iterkeys():
+        for k in self.tdb.keys():
             if k.startswith(IDMAP_USER_PREFIX):
                 yield int(k[len(IDMAP_USER_PREFIX):].rstrip("\0"))
 
     def gids(self):
         """Retrieve a list of all gids in this database."""
-        for k in self.tdb.iterkeys():
+        for k in self.tdb.keys():
             if k.startswith(IDMAP_GROUP_PREFIX):
                 yield int(k[len(IDMAP_GROUP_PREFIX):].rstrip("\0"))
 
@@ -214,7 +214,7 @@ class SecretsDatabase(TdbDatabase):
         return self.tdb.get("SECRETS/DOMGUID/%s" % host)
 
     def ldap_dns(self):
-        for k in self.tdb.iterkeys():
+        for k in self.tdb.keys():
             if k.startswith("SECRETS/LDAP_BIND_PW/"):
                 yield k[len("SECRETS/LDAP_BIND_PW/"):].rstrip("\0")
 
@@ -223,7 +223,7 @@ class SecretsDatabase(TdbDatabase):
 
         :return: Iterator over the names of domains in this database.
         """
-        for k in self.tdb.iterkeys():
+        for k in self.tdb.keys():
             if k.startswith("SECRETS/SID/"):
                 yield k[len("SECRETS/SID/"):].rstrip("\0")
 
@@ -249,7 +249,7 @@ class SecretsDatabase(TdbDatabase):
         return self.tdb.get("SECRETS/$DOMTRUST.ACC/%s" % host)
 
     def trusted_domains(self):
-        for k in self.tdb.iterkeys():
+        for k in self.tdb.keys():
             if k.startswith("SECRETS/$DOMTRUST.ACC/"):
                 yield k[len("SECRETS/$DOMTRUST.ACC/"):].rstrip("\0")
 

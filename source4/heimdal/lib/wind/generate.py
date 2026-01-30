@@ -56,10 +56,10 @@ class GeneratedFile :
 
 class Header(GeneratedFile) :
     "Represents a generated header file"
-    guardTrans = string.maketrans('-.', '__')
+    guardTrans = str.maketrans('-.', '__')
     def makeGuard(self) :
         """Return a name to be used as ifdef guard"""
-        return string.upper(string.translate(self.name, self.guardTrans))
+        return self.name.translate(self.guardTrans).upper()
 
     def __init__(self, name) :
         "Create a new Header with name"

@@ -22,6 +22,10 @@
 #include "system/filesys.h"
 #include "version.h"
 
+#ifdef __APPLE__
+#include <TargetConditionals.h>
+#endif
+
 #ifdef HAVE_SYS_SYSCTL_H
 #include <sys/sysctl.h>
 #endif
@@ -131,7 +135,13 @@ static void smb_panic_default(const char *why)
 			snprintf(pidstr, sizeof(pidstr), "%d", (int) getpid());
 			all_string_sub(cmdstring, "%d", pidstr, sizeof(cmdstring));
 			DEBUG(0, ("smb_panic(): calling panic action [%s]\n", cmdstring));
-			result = popen(cmdstring, "r");
+#if defined(__APPLE__) && (TARGET_OS_IOS || TARGET_OS_TV || TARGET_OS_WATCH || TARGET_OS_SIMULATOR)
+			/* system() is unavailable on iOS/tvOS/watchOS */
+			(void)cmdstring;
+			result = -1;
+#else
+			result = system(cmdstring);
+#endif
 
 			if (result == -1)
 				DEBUG(0, ("smb_panic(): fork failed in panic action: %s\n",

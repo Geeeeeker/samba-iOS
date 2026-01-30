@@ -24,6 +24,10 @@
 #include "includes.h"
 #include "system/passwd.h"
 #include "system/filesys.h"
+
+#ifdef __APPLE__
+#include <TargetConditionals.h>
+#endif
 #include "util_tdb.h"
 #include "ctdbd_conn.h"
 #include "../lib/util/util_pw.h"
@@ -820,7 +824,14 @@ void smb_panic_s3(const char *why)
 	cmd = lp_panic_action(talloc_tos());
 	if (cmd && *cmd) {
 		DEBUG(0, ("smb_panic(): calling panic action [%s]\n", cmd));
-		result = popen(cmd, "r");
+#if defined(__APPLE__) && (TARGET_OS_IOS || TARGET_OS_TV || TARGET_OS_WATCH || TARGET_OS_SIMULATOR)
+		/* popen() is unavailable on iOS/tvOS/watchOS */
+		(void)cmd;
+		result = -1;
+		DEBUG(0, ("smb_panic(): popen() not available on this platform\n"));
+#else
+		result = (int)(intptr_t)popen(cmd, "r");
+#endif
 
 		if (result == -1)
 			DEBUG(0, ("smb_panic(): fork failed in panic action: %s\n",

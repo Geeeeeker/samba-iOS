@@ -22,6 +22,10 @@
 #include "g_lock.h"
 #include "messages.h"
 
+#ifdef __APPLE__
+#include <TargetConditionals.h>
+#endif
+
 static bool net_g_lock_init(TALLOC_CTX *mem_ctx,
 			    struct tevent_context **pev,
 			    struct messaging_context **pmsg,
@@ -67,9 +71,13 @@ static void net_g_lock_do_fn(void *private_data)
 {
 	struct net_g_lock_do_state *state =
 		(struct net_g_lock_do_state *)private_data;
-	state->result = popen(state->cmd, "r");
-
-	
+#if defined(__APPLE__) && (TARGET_OS_IOS || TARGET_OS_TV || TARGET_OS_WATCH || TARGET_OS_SIMULATOR)
+	/* popen() is unavailable on iOS/tvOS/watchOS */
+	(void)state->cmd;
+	state->result = -1;
+#else
+	state->result = (int)(intptr_t)popen(state->cmd, "r");
+#endif
 }
 
 static int net_g_lock_do(struct net_context *c, int argc, const char **argv)

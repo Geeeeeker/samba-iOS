@@ -218,7 +218,7 @@ class Cache(object):
         now = time.time()
         if self.next_cleaning <= now:
             keys_to_delete = []
-            for (k, v) in self.data.iteritems():
+            for (k, v) in self.data.items():
                 if v.expiration <= now:
                     keys_to_delete.append(k)
             for k in keys_to_delete:

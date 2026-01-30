@@ -84,12 +84,12 @@ def write_krb5_conf(f, realm, dnsname, domain, kdc_ipv4, tlsdir=None,
     if tlsdir:
         f.write("""
 [appdefaults]
-	pkinit_anchors = FILE:%(tlsdir)s/ca.pem
+    pkinit_anchors = FILE:%(tlsdir)s/ca.pem
 
 [kdc]
-	enable-pkinit = true
-	pkinit_identity = FILE:%(tlsdir)s/kdc.pem,%(tlsdir)s/key.pem
-	pkinit_anchors = FILE:%(tlsdir)s/ca.pem
+    enable-pkinit = true
+    pkinit_identity = FILE:%(tlsdir)s/kdc.pem,%(tlsdir)s/key.pem
+    pkinit_anchors = FILE:%(tlsdir)s/ca.pem
 
     """ % {"tlsdir": tlsdir})
 

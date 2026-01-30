@@ -154,7 +154,7 @@ class SimpleTdbTests(TestCase):
     def test_iterkeys(self):
         self.tdb["bloe"] = "2"
         self.tdb["bla"] = "25"
-        i = self.tdb.iterkeys()
+        i = self.tdb.keys()
         self.assertEquals(set(["bloe", "bla"]), set([i.next(), i.next()]))
 
     def test_clear(self):

@@ -13,13 +13,13 @@ Task.simple_task_type('fluid', '${FLUID} -c -o ${TGT[0].abspath(env)} -h ${TGT[1
 
 @extension('.fl')
 def fluid(self, node):
-	"""add the .fl to the source list; the cxx file generated will be compiled when possible"""
-	cpp = node.change_ext('.cpp')
-	hpp = node.change_ext('.hpp')
-	self.create_task('fluid', node, [cpp, hpp])
+    """add the .fl to the source list; the cxx file generated will be compiled when possible"""
+    cpp = node.change_ext('.cpp')
+    hpp = node.change_ext('.hpp')
+    self.create_task('fluid', node, [cpp, hpp])
 
-	if 'cxx' in self.features:
-		self.allnodes.append(cpp)
+    if 'cxx' in self.features:
+        self.allnodes.append(cpp)
 
 def detect(conf):
     fluid = conf.find_program('fluid', var='FLUID', mandatory=True)

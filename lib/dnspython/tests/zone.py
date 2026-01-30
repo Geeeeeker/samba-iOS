@@ -139,7 +139,7 @@ class ZoneTestCase(unittest.TestCase):
         f = cStringIO.StringIO()
         o = dns.name.from_text('example.')
         z = dns.zone.from_file('example', o)
-        for (name, node) in z.iteritems():
+        for (name, node) in z.items():
             for rds in node:
                 for rd in rds:
                     f.seek(0)

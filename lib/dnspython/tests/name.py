@@ -68,7 +68,7 @@ class NameTestCase(unittest.TestCase):
             r'..',
             r'.a',
             r'\\..',
-            '\\',		# yes, we don't want the 'r' prefix!
+            '\\',        # yes, we don't want the 'r' prefix!
             r'\0',
             r'\00',
             r'\00Z',

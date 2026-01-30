@@ -146,7 +146,7 @@ class EnvironmentManager(object):
 
     def teardown_all(self):
         """Teardown all environments."""
-        for env in self.running_envs.iterkeys():
+        for env in self.running_envs.keys():
             self.teardown_env(env)
 
     def setup_env(self, envname, prefix):

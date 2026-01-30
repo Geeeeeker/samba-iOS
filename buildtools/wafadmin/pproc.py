@@ -319,7 +319,7 @@ class Popen(object):
 
             try:
                 hp, ht, pid, tid = CreateProcess(executable, args, None, None, 1, creationflags, env, cwd, startupinfo)
-            except pywintypes.error, e:
+            except pywintypes.error as e:
                 raise WindowsError(*e.args)
 
             self._child_created = True
@@ -437,7 +437,7 @@ class Popen(object):
             fcntl.fcntl(fd, fcntl.F_SETFD, old | cloexec_flag)
 
         def _close_fds(self, but):
-            for i in xrange(3, MAXFD):
+            for i in range(3, MAXFD):
                 if i == but:
                     continue
                 try:
