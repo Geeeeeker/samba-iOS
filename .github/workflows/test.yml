@@ -1,4 +1,4 @@
-name: Build EasySamba Samba for iOS
+name: Build iOS Samba Static Library (arm64/armv7)
 
 on:
   workflow_dispatch:
@@ -17,10 +17,18 @@ jobs:
     runs-on: macos-latest
 
     steps:
-      - name: Checkout EasySamba repository
+      - name: Checkout kxsmb repository
         uses: actions/checkout@v4
         with:
-          repository: FlameGrace/EasySamba
+          repository: kolyvan/kxsmb
+          path: kxsmb
+
+      - name: Download iOS-patched Samba source
+        run: |
+          cd kxsmb
+          rm -rf samba
+          git clone https://github.com/shaojiankui/samba-iOS.git samba
+          rm -rf samba/.git
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
@@ -31,22 +39,6 @@ jobs:
         run: |
           gem install rake
           brew install autoconf automake libtool
-
-      - name: Download Samba source code (retrieve_samba)
-        run: rake retrieve_samba
-
-      - name: Patch Rakefile to disable autoconf regeneration
-        run: |
-          # 备份原始 Rakefile
-          cp Rakefile Rakefile.bak
-          # 注释掉 buildArch 函数中的 "autoconf ..." 行
-          sed -i '' '/system_or_exit("autoconf /s/^/# /' Rakefile
-          # 同时确保 config_args 包含 --disable-shared
-          sed -i '' 's/config_args = "--/config_args = "--disable-shared --/g' Rakefile
-          # 显示修改内容（调试用）
-          echo "=== Patched Rakefile (relevant lines) ==="
-          grep -n "autoconf" Rakefile || echo "No autoconf line found (already commented)"
-          grep -n "disable-shared" Rakefile || echo "No --disable-shared found"
 
       - name: Fix missing crt_externs.h for iOS Simulator SDK
         run: |
@@ -68,9 +60,9 @@ jobs:
           				_NSGetMachExecuteHeader(void);
           __END_DECLS
           EOF
-            echo "✅ crt_externs.h created for simulator SDK"
+            echo "✅ crt_externs.h created"
           else
-            echo "⚠️ Simulator SDK not found, skipping crt_externs.h"
+            echo "⚠️ Simulator SDK not found, skipping"
           fi
 
       - name: Set cross-compilation environment variables
@@ -84,7 +76,7 @@ jobs:
           export smb_krb5_cv_enctype_to_string_takes_size_t_arg=yes
           export ac_cv_file__proc_sys_kernel_core_pattern=yes
           
-          # 确保后续步骤能读取这些变量
+          # 写入环境变量供后续步骤使用
           echo "samba_cv_big_endian=no" >> $GITHUB_ENV
           echo "samba_cv_little_endian=yes" >> $GITHUB_ENV
           echo "samba_cv_CC_NEGATIVE_ENUM_VALUES=yes" >> $GITHUB_ENV
@@ -97,24 +89,41 @@ jobs:
 
       - name: Build Samba for ${{ github.event.inputs.architecture }}
         run: |
-          echo "🔨 Building for architecture: ${{ github.event.inputs.architecture }}"
+          cd kxsmb
+          echo "🔨 Building for ${{ github.event.inputs.architecture }}"
+          # 直接调用对应架构的 rake 任务（无需修改 Rakefile）
           rake build_smb_${{ github.event.inputs.architecture }}
 
-      - name: Collect artifacts
+      - name: Collect and package artifacts
         run: |
+          cd kxsmb
           mkdir -p artifacts/libs
-          # 查找生成的 .a 静态库（包括通用库目录）
-          find samba/source3/bin -name "*.a" -exec cp {} artifacts/libs/ \; 2>/dev/null || true
-          # 如果 libs 目录已存在头文件，一并复制
+          
+          # 复制编译生成的静态库
+          if [ -d "samba/source3/bin/${{ github.event.inputs.architecture }}" ]; then
+            cp samba/source3/bin/${{ github.event.inputs.architecture }}/*.a artifacts/libs/
+          elif [ -d "samba/source3/bin/universal" ]; then
+            cp samba/source3/bin/universal/*.a artifacts/libs/
+          else
+            echo "⚠️ No binary directory found, searching..."
+            find samba/source3/bin -name "*.a" -exec cp {} artifacts/libs/ \;
+          fi
+          
+          # 复制头文件（如果存在）
           if [ -d "libs" ]; then
             cp libs/*.h artifacts/libs/ 2>/dev/null || true
           fi
+          
+          # 创建版本信息
+          echo "Architecture: ${{ github.event.inputs.architecture }}" > artifacts/build_info.txt
+          echo "Build date: $(date)" >> artifacts/build_info.txt
+          
           # 打包
           tar -czf samba-ios-${{ github.event.inputs.architecture }}.tar.gz -C artifacts .
 
-      - name: Upload artifacts
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: samba-ios-${{ github.event.inputs.architecture }}
-          path: samba-ios-${{ github.event.inputs.architecture }}.tar.gz
+          path: kxsmb/samba-ios-${{ github.event.inputs.architecture }}.tar.gz
           retention-days: 30
