@@ -1,48 +1,54 @@
-name: 编译 iOS Samba 静态库
+name: Build EasySamba Samba for iOS
 
 on:
   workflow_dispatch:
     inputs:
-      arch_armv7:
-        description: '编译 armv7 架构（iOS 9.0 以下设备）'
-        required: false
-        type: boolean
-        default: false
-      arch_arm64:
-        description: '编译 arm64 架构（默认开启，iOS 11+ 设备）'
-        required: false
-        type: boolean
-        default: true
+      architecture:
+        description: 'Target Architecture'
+        required: true
+        default: 'arm64'
+        type: choice
+        options:
+          - arm64
+          - armv7
 
 jobs:
   build:
-    runs-on: macos-latest    # 注意：正确写法是 macos-13，无后缀
+    runs-on: macos-latest
 
     steps:
-      - name: 检出 kxsmb 封装库
+      - name: Checkout EasySamba repository
         uses: actions/checkout@v4
         with:
-          repository: kolyvan/kxsmb
-          path: kxsmb
+          repository: FlameGrace/EasySamba
 
-      - name: 下载修复版 samba 源码（已替换 system() 调用）
-        run: |
-          cd kxsmb
-          rm -rf samba
-          git clone https://github.com/shaojiankui/samba-iOS.git samba
-          # 移除原有 .git 避免干扰
-          rm -rf samba/.git
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '2.7'
 
-      - name: 设置 Xcode 环境
+      - name: Install build dependencies
         run: |
-          sudo xcode-select -switch /Applications/Xcode.app/Contents/Developer
-          xcodebuild -version
-
-      - name: 安装 autoconf / automake / libtool（若缺失）
-        run: |
+          gem install rake
           brew install autoconf automake libtool
 
-      - name: 解决 Xcode 缺失 crt_externs.h（仅模拟器 SDK 需要）
+      - name: Download Samba source code (retrieve_samba)
+        run: rake retrieve_samba
+
+      - name: Patch Rakefile to disable autoconf regeneration
+        run: |
+          # 备份原始 Rakefile
+          cp Rakefile Rakefile.bak
+          # 注释掉 buildArch 函数中的 "autoconf ..." 行
+          sed -i '' '/system_or_exit("autoconf /s/^/# /' Rakefile
+          # 同时确保 config_args 包含 --disable-shared
+          sed -i '' 's/config_args = "--/config_args = "--disable-shared --/g' Rakefile
+          # 显示修改内容（调试用）
+          echo "=== Patched Rakefile (relevant lines) ==="
+          grep -n "autoconf" Rakefile || echo "No autoconf line found (already commented)"
+          grep -n "disable-shared" Rakefile || echo "No --disable-shared found"
+
+      - name: Fix missing crt_externs.h for iOS Simulator SDK
         run: |
           SIM_SDK_PATH="/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk"
           if [ -d "$SIM_SDK_PATH" ]; then
@@ -62,9 +68,12 @@ jobs:
           				_NSGetMachExecuteHeader(void);
           __END_DECLS
           EOF
+            echo "✅ crt_externs.h created for simulator SDK"
+          else
+            echo "⚠️ Simulator SDK not found, skipping crt_externs.h"
           fi
 
-      - name: 设置交叉编译环境变量（解决 big endian 等配置错误）
+      - name: Set cross-compilation environment variables
         run: |
           export samba_cv_big_endian=no
           export samba_cv_little_endian=yes
@@ -75,56 +84,37 @@ jobs:
           export smb_krb5_cv_enctype_to_string_takes_size_t_arg=yes
           export ac_cv_file__proc_sys_kernel_core_pattern=yes
           
-          # 构建架构列表
-          ARCHS=""
-          if [ "${{ github.event.inputs.arch_armv7 }}" = "true" ]; then
-            ARCHS="$ARCHS armv7"
-          fi
-          if [ "${{ github.event.inputs.arch_arm64 }}" = "true" ]; then
-            ARCHS="$ARCHS arm64"
-          fi
-          if [ -z "$ARCHS" ]; then
-            ARCHS="arm64"
-          fi
-          
-          cd kxsmb
-          echo "🔨 开始编译架构: $ARCHS"
-          rake build ARCHS="$ARCHS"
+          # 确保后续步骤能读取这些变量
+          echo "samba_cv_big_endian=no" >> $GITHUB_ENV
+          echo "samba_cv_little_endian=yes" >> $GITHUB_ENV
+          echo "samba_cv_CC_NEGATIVE_ENUM_VALUES=yes" >> $GITHUB_ENV
+          echo "libreplace_cv_HAVE_GETADDRINFO=no" >> $GITHUB_ENV
+          echo "samba_cv_HAVE_WRFILE_KEYTAB=no" >> $GITHUB_ENV
+          echo "smb_krb5_cv_enctype_to_string_takes_krb5_context_arg=no" >> $GITHUB_ENV
+          echo "smb_krb5_cv_enctype_to_string_takes_size_t_arg=yes" >> $GITHUB_ENV
+          echo "ac_cv_file__proc_sys_kernel_core_pattern=yes" >> $GITHUB_ENV
+        shell: bash
 
-      - name: 打包编译产物
+      - name: Build Samba for ${{ github.event.inputs.architecture }}
         run: |
-          cd kxsmb
-          mkdir -p artifacts/libs
-          mkdir -p artifacts/include
-          
-          # 复制通用库（如果存在）或单架构库
-          if [ -f "samba/source3/bin/universal/libsmbclient.a" ]; then
-            cp samba/source3/bin/universal/*.a artifacts/libs/
-          else
-            # 尝试复制第一个存在的架构库
-            for arch in arm64 armv7; do
-              if [ -f "samba/source3/bin/${arch}/libsmbclient.a" ]; then
-                cp samba/source3/bin/${arch}/*.a artifacts/libs/
-                break
-              fi
-            done
-          fi
-          
-          # 复制头文件
-          cp samba/source3/include/libsmbclient.h artifacts/include/ 2>/dev/null || true
-          cp samba/source3/include/smb_share_mode.h artifacts/include/ 2>/dev/null || true
-          
-          # 创建说明文件
-          echo "Samba Source: https://github.com/shaojiankui/samba-iOS" > artifacts/README.txt
-          echo "Architectures: ${{ github.event.inputs.arch_arm64 == 'true' && 'arm64' || '' }} ${{ github.event.inputs.arch_armv7 == 'true' && 'armv7' || '' }}" >> artifacts/README.txt
-          echo "Build Date: $(date)" >> artifacts/README.txt
-          
-          cd artifacts
-          zip -r ../samba-ios-libs.zip .
+          echo "🔨 Building for architecture: ${{ github.event.inputs.architecture }}"
+          rake build_smb_${{ github.event.inputs.architecture }}
 
-      - name: 上传最终产物
+      - name: Collect artifacts
+        run: |
+          mkdir -p artifacts/libs
+          # 查找生成的 .a 静态库（包括通用库目录）
+          find samba/source3/bin -name "*.a" -exec cp {} artifacts/libs/ \; 2>/dev/null || true
+          # 如果 libs 目录已存在头文件，一并复制
+          if [ -d "libs" ]; then
+            cp libs/*.h artifacts/libs/ 2>/dev/null || true
+          fi
+          # 打包
+          tar -czf samba-ios-${{ github.event.inputs.architecture }}.tar.gz -C artifacts .
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: samba-ios-static-libs
-          path: kxsmb/samba-ios-libs.zip
+          name: samba-ios-${{ github.event.inputs.architecture }}
+          path: samba-ios-${{ github.event.inputs.architecture }}.tar.gz
           retention-days: 30
