@@ -1,10 +1,10 @@
-name: Build iOS Samba (arm64/armv7) - Robust
+name: Build iOS Samba Static Library (arm64/armv7)
 
 on:
   workflow_dispatch:
     inputs:
       architecture:
-        description: 'Target architecture'
+        description: 'Target Architecture'
         required: true
         default: 'arm64'
         type: choice
@@ -25,18 +25,15 @@ jobs:
       smb_krb5_cv_enctype_to_string_takes_krb5_context_arg: no
       smb_krb5_cv_enctype_to_string_takes_size_t_arg: yes
       ac_cv_file__proc_sys_kernel_core_pattern: yes
-      # 附加编译选项（如需静态链接、禁用共享库等）
-      CFLAGS: -D__IPHONE_OS_VERSION_MIN_REQUIRED=__IPHONE_11_0
-      LDFLAGS: -Wl,-dead_strip
 
     steps:
-      - name: Checkout kxsmb
+      - name: Checkout kxsmb framework
         uses: actions/checkout@v4
         with:
           repository: kolyvan/kxsmb
           path: kxsmb
 
-      - name: Clone iOS-patched Samba source (system() fixed)
+      - name: Clone iOS-patched Samba source (system() already fixed)
         run: |
           cd kxsmb
           rm -rf samba
@@ -48,12 +45,12 @@ jobs:
         with:
           ruby-version: '2.7'
 
-      - name: Install dependencies
+      - name: Install build dependencies
         run: |
           gem install rake
-          brew install autoconf automake libtool
+          brew install autoconf automake libtool dos2unix
 
-      - name: Fix missing crt_externs.h (Simulator SDK)
+      - name: Fix missing crt_externs.h for iOS Simulator SDK
         run: |
           SIM_INC="/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/include"
           sudo mkdir -p "$SIM_INC"
@@ -73,19 +70,33 @@ jobs:
           __END_DECLS
           EOF
 
-      - name: Prevent Rakefile from regenerating configure
+      - name: Fix configure line endings (CRLF -> LF)
+        run: |
+          cd kxsmb/samba/source3
+          # 强制转换所有 configure 及相关脚本为 Unix 换行符
+          find . -name "configure" -o -name "*.sh" -o -name "config.*" | while read f; do
+            if file "$f" | grep -q "CRLF"; then
+              echo "Fixing line endings: $f"
+              dos2unix "$f"
+            fi
+          done
+          # 额外确保主 configure 可执行且换行正确
+          chmod +x configure
+          echo "=== Checking configure line 5347 ==="
+          sed -n '5340,5355p' configure
+
+      - name: Disable autoconf regeneration in Rakefile
         run: |
           cd kxsmb
-          # 注释掉 buildArch 函数内的 autoconf 调用，避免重新生成 configure
+          # 注释掉 buildArch 函数中的 autoconf 调用，防止它重新生成损坏的 configure
           sed -i '' '/system_or_exit("autoconf"/s/^/# DISABLED: /' Rakefile
           echo "=== autoconf lines in Rakefile ==="
           grep -n "autoconf" Rakefile || echo "(none found)"
 
-      - name: Build for ${{ github.event.inputs.architecture }}
+      - name: Build Samba for ${{ github.event.inputs.architecture }}
         run: |
           cd kxsmb
-          echo "🔨 Building ${{ github.event.inputs.architecture }}"
-          # 直接执行对应架构的 rake 任务
+          echo "🔨 Building for ${{ github.event.inputs.architecture }}"
           rake build_smb_${{ github.event.inputs.architecture }}
 
       - name: Collect artifacts
@@ -93,7 +104,6 @@ jobs:
           cd kxsmb
           mkdir -p artifacts/libs
           ARCH="${{ github.event.inputs.architecture }}"
-          # 复制生成的静态库（优先对应架构目录，其次通用目录）
           if [ -d "samba/source3/bin/${ARCH}" ]; then
             cp samba/source3/bin/${ARCH}/*.a artifacts/libs/
           elif [ -d "samba/source3/bin/universal" ]; then
@@ -101,12 +111,9 @@ jobs:
           else
             find samba/source3/bin -name "*.a" -exec cp {} artifacts/libs/ \;
           fi
-          # 复制头文件
           cp samba/source3/include/*.h artifacts/libs/ 2>/dev/null || true
-          # 生成说明文件
           echo "Architecture: ${ARCH}" > artifacts/build_info.txt
           echo "Date: $(date)" >> artifacts/build_info.txt
-          # 打包
           tar -czf samba-ios-${ARCH}.tar.gz -C artifacts .
 
       - name: Upload artifact
