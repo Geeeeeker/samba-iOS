@@ -5,11 +5,14 @@ on:
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: macos-13    # 使用 macOS 13，默认 Python 为 3.11，仍有 imp 模块
 
     steps:
       - name: Install dependencies
-        run: brew install autoconf automake libtool pkg-config
+        run: |
+          brew install autoconf automake libtool pkg-config
+          # 确保 Python 3.11 存在（macOS 13 自带）
+          python3 --version
 
       - name: Download Samba source (4.0.26)
         run: |
@@ -18,9 +21,10 @@ jobs:
           mv samba-4.0.26 samba
 
       - name: Apply iOS fixes (system() -> popen())
+        env:
+          LC_ALL: C   # 避免 sed 报非法字节序列错误
         run: |
           cd samba
-          # 替换所有 system() 为 popen()
           find . -name "*.c" -exec sed -i '' 's/system(\([^)]*\))/popen(\1, "r")/g' {} \;
 
       - name: Configure cross-compilation for iOS arm64
@@ -29,8 +33,6 @@ jobs:
           export CC="$(xcrun --find clang) -isysroot $SDK -arch arm64 -miphoneos-version-min=10.0"
           export CFLAGS="-isysroot $SDK -arch arm64 -miphoneos-version-min=10.0 -D__IPHONE_OS_VERSION_MIN_REQUIRED=100000"
           export LDFLAGS="-isysroot $SDK -arch arm64 -miphoneos-version-min=10.0"
-
-          # 交叉编译预设
           export samba_cv_big_endian=no
           export samba_cv_little_endian=yes
           export samba_cv_CC_NEGATIVE_ENUM_VALUES=yes
@@ -79,7 +81,6 @@ jobs:
         run: |
           mkdir -p ios_bin
           cp samba/source3/bin/smbclient ios_bin/
-          # 去除调试符号，减小体积
           strip ios_bin/smbclient
           chmod +x ios_bin/smbclient
 
