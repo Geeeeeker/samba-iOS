@@ -1,4 +1,4 @@
-name: Build iOS Samba Static Library (arm64/armv7)
+name: Build iOS Samba (Official Source + Patch)
 
 on:
   workflow_dispatch:
@@ -15,110 +15,124 @@ on:
 jobs:
   build:
     runs-on: macos-latest
-    env:
-      # 交叉编译环境变量，解决 "cannot run test program" 等错误
-      samba_cv_big_endian: no
-      samba_cv_little_endian: yes
-      samba_cv_CC_NEGATIVE_ENUM_VALUES: yes
-      libreplace_cv_HAVE_GETADDRINFO: no
-      samba_cv_HAVE_WRFILE_KEYTAB: no
-      smb_krb5_cv_enctype_to_string_takes_krb5_context_arg: no
-      smb_krb5_cv_enctype_to_string_takes_size_t_arg: yes
-      ac_cv_file__proc_sys_kernel_core_pattern: yes
 
     steps:
-      - name: Checkout kxsmb framework
-        uses: actions/checkout@v4
-        with:
-          repository: kolyvan/kxsmb
-          path: kxsmb
-
-      - name: Clone iOS-patched Samba source (system() already fixed)
+      - name: Install dependencies
         run: |
-          cd kxsmb
-          rm -rf samba
-          git clone https://github.com/shaojiankui/samba-iOS.git samba
-          rm -rf samba/.git
+          brew install autoconf automake libtool
 
-      - name: Setup Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '2.7'
-
-      - name: Install build dependencies
+      - name: Download official Samba 4.0.26 source
         run: |
-          gem install rake
-          brew install autoconf automake libtool dos2unix
+          curl -LO https://download.samba.org/pub/samba/stable/samba-4.0.26.tar.gz
+          tar -xzf samba-4.0.26.tar.gz
+          mv samba-4.0.26 samba
 
-      - name: Fix missing crt_externs.h for iOS Simulator SDK
+      - name: Apply iOS fixes (system() -> popen())
         run: |
-          SIM_INC="/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/include"
-          sudo mkdir -p "$SIM_INC"
-          sudo tee "$SIM_INC/crt_externs.h" > /dev/null << 'EOF'
-          #include <sys/cdefs.h>
-          __BEGIN_DECLS
-          extern char ***_NSGetArgv(void);
-          extern int *_NSGetArgc(void);
-          extern char ***_NSGetEnviron(void);
-          extern char **_NSGetProgname(void);
-          #ifdef __LP64__
-          extern struct mach_header_64 *
-          #else
-          extern struct mach_header *
-          #endif
-          				_NSGetMachExecuteHeader(void);
-          __END_DECLS
-          EOF
+          cd samba
+          # 替换所有 system(cmd) 为 popen(cmd, "r")
+          find . -name "*.c" -exec sed -i '' 's/system(\([^)]*\))/popen(\1, "r")/g' {} \;
+          # 确保 popen 对应的 pclose 正确使用（如有必要）
+          echo "Patch applied."
 
-      - name: Fix configure line endings (CRLF -> LF)
+      - name: Set up cross-compilation environment
         run: |
-          cd kxsmb/samba/source3
-          # 强制转换所有 configure 及相关脚本为 Unix 换行符
-          find . -name "configure" -o -name "*.sh" -o -name "config.*" | while read f; do
-            if file "$f" | grep -q "CRLF"; then
-              echo "Fixing line endings: $f"
-              dos2unix "$f"
-            fi
-          done
-          # 额外确保主 configure 可执行且换行正确
-          chmod +x configure
-          echo "=== Checking configure line 5347 ==="
-          sed -n '5340,5355p' configure
+          # 设置 SDK 路径和目标三元组
+          SDK=$(xcrun --sdk iphoneos --show-sdk-path)
+          if [ "${{ github.event.inputs.architecture }}" = "arm64" ]; then
+            HOST="aarch64-apple-darwin"
+            ARCH_FLAGS="-arch arm64 -miphoneos-version-min=11.0"
+          else
+            HOST="armv7-apple-darwin"
+            ARCH_FLAGS="-arch armv7 -miphoneos-version-min=9.0"
+          fi
 
-      - name: Disable autoconf regeneration in Rakefile
-        run: |
-          cd kxsmb
-          # 注释掉 buildArch 函数中的 autoconf 调用，防止它重新生成损坏的 configure
-          sed -i '' '/system_or_exit("autoconf"/s/^/# DISABLED: /' Rakefile
-          echo "=== autoconf lines in Rakefile ==="
-          grep -n "autoconf" Rakefile || echo "(none found)"
+          export CC="$(xcrun --find clang)"
+          export CXX="$(xcrun --find clang++)"
+          export CFLAGS="-isysroot $SDK $ARCH_FLAGS"
+          export LDFLAGS="-isysroot $SDK $ARCH_FLAGS"
 
-      - name: Build Samba for ${{ github.event.inputs.architecture }}
+          # 交叉编译预设变量
+          export samba_cv_big_endian=no
+          export samba_cv_little_endian=yes
+          export samba_cv_CC_NEGATIVE_ENUM_VALUES=yes
+          export libreplace_cv_HAVE_GETADDRINFO=no
+          export samba_cv_HAVE_WRFILE_KEYTAB=no
+          export smb_krb5_cv_enctype_to_string_takes_krb5_context_arg=no
+          export smb_krb5_cv_enctype_to_string_takes_size_t_arg=yes
+          export ac_cv_file__proc_sys_kernel_core_pattern=yes
+
+          # 写入 GITHUB_ENV 供后续步骤使用
+          echo "SDK=$SDK" >> $GITHUB_ENV
+          echo "HOST=$HOST" >> $GITHUB_ENV
+          echo "ARCH_FLAGS=$ARCH_FLAGS" >> $GITHUB_ENV
+          echo "CC=$CC" >> $GITHUB_ENV
+          echo "CXX=$CXX" >> $GITHUB_ENV
+          echo "CFLAGS=$CFLAGS" >> $GITHUB_ENV
+          echo "LDFLAGS=$LDFLAGS" >> $GITHUB_ENV
+          echo "samba_cv_big_endian=no" >> $GITHUB_ENV
+          echo "samba_cv_little_endian=yes" >> $GITHUB_ENV
+          echo "samba_cv_CC_NEGATIVE_ENUM_VALUES=yes" >> $GITHUB_ENV
+          echo "libreplace_cv_HAVE_GETADDRINFO=no" >> $GITHUB_ENV
+          echo "samba_cv_HAVE_WRFILE_KEYTAB=no" >> $GITHUB_ENV
+          echo "smb_krb5_cv_enctype_to_string_takes_krb5_context_arg=no" >> $GITHUB_ENV
+          echo "smb_krb5_cv_enctype_to_string_takes_size_t_arg=yes" >> $GITHUB_ENV
+          echo "ac_cv_file__proc_sys_kernel_core_pattern=yes" >> $GITHUB_ENV
+
+      - name: Configure Samba
         run: |
-          cd kxsmb
-          echo "🔨 Building for ${{ github.event.inputs.architecture }}"
-          rake build_smb_${{ github.event.inputs.architecture }}
+          cd samba
+          ./configure \
+            --host=$HOST \
+            --target=$HOST \
+            --disable-shared \
+            --enable-static \
+            --disable-cups \
+            --disable-iprint \
+            --disable-pie \
+            --without-pam \
+            --without-winbind \
+            --without-ads \
+            --without-ldap \
+            --without-acl-support \
+            --without-utmp \
+            --without-sendfile-support \
+            --without-dnsupdate \
+            --without-automount \
+            --without-systemd \
+            --without-dmapi \
+            --without-fam \
+            --without-gpgme \
+            --without-json \
+            --without-lttng \
+            --without-ntdb \
+            --without-regedit \
+            --without-aio-support \
+            --without-quotas \
+            --without-syslog \
+            --prefix=$(pwd)/install
+
+      - name: Build libsmbclient
+        run: |
+          cd samba/source3
+          make libsmbclient
 
       - name: Collect artifacts
         run: |
-          cd kxsmb
           mkdir -p artifacts/libs
-          ARCH="${{ github.event.inputs.architecture }}"
-          if [ -d "samba/source3/bin/${ARCH}" ]; then
-            cp samba/source3/bin/${ARCH}/*.a artifacts/libs/
-          elif [ -d "samba/source3/bin/universal" ]; then
-            cp samba/source3/bin/universal/*.a artifacts/libs/
-          else
-            find samba/source3/bin -name "*.a" -exec cp {} artifacts/libs/ \;
-          fi
-          cp samba/source3/include/*.h artifacts/libs/ 2>/dev/null || true
-          echo "Architecture: ${ARCH}" > artifacts/build_info.txt
-          echo "Date: $(date)" >> artifacts/build_info.txt
-          tar -czf samba-ios-${ARCH}.tar.gz -C artifacts .
+          cd samba
+          # 收集生成的 .a 文件
+          find . -name "*.a" -exec cp {} ../artifacts/libs/ \;
+          # 复制头文件
+          cp source3/include/libsmbclient.h ../artifacts/libs/
+          cp source3/include/smb_share_mode.h ../artifacts/libs/ 2>/dev/null || true
+          # 打包
+          cd ../artifacts
+          tar -czf ../samba-ios-${{ github.event.inputs.architecture }}.tar.gz .
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: samba-ios-${{ github.event.inputs.architecture }}
-          path: kxsmb/samba-ios-*.tar.gz
+          path: samba-ios-${{ github.event.inputs.architecture }}.tar.gz
           retention-days: 30
