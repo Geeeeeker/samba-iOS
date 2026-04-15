@@ -5,7 +5,7 @@ on:
 
 jobs:
   build:
-    runs-on: macos-13    # 使用 macOS 13，默认 Python 为 3.11，仍有 imp 模块
+    runs-on: macos-latest   # 使用 macOS 13，默认 Python 为 3.11，仍有 imp 模块
 
     steps:
       - name: Install dependencies
