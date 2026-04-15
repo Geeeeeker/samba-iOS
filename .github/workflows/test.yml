@@ -1,0 +1,140 @@
+name: 编译iOS Samba静态库
+
+on:
+  workflow_dispatch:
+    inputs:
+      samba_version:
+        description: '选择Samba版本'
+        required: true
+        type: choice
+        default: 'v1.0'  # 默认使用较新版本
+        options:
+          - 'v1.0'  # 对应 4.0.26 版本
+          - '20181123' # 对应 20181123 版本
+      arch_armv7:
+        description: '编译 armv7 架构 (iOS 9.0及以下设备)'
+        required: false
+        type: boolean
+        default: false
+      arch_arm64:
+        description: '编译 arm64 架构 (iOS 11.0及以上设备)'
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  build:
+    runs-on: macos-13
+    steps:
+      - name: 1. 检出kxsmb代码
+        uses: actions/checkout@v4
+        with:
+          repository: kolyvan/kxsmb
+          path: kxsmb
+
+      - name: 2. 下载并准备Samba源码
+        run: |
+          cd kxsmb
+          mkdir -p samba
+          cd samba
+          # 根据选择下载不同的源码包
+          if [ "${{ github.event.inputs.samba_version }}" = "v1.0" ]; then
+            echo "📥 下载 Samba 4.0.26 版本源码..."
+            curl -L -o samba.tar.gz "https://download.samba.org/pub/samba/stable/samba-4.0.26.tar.gz"
+          else
+            echo "📥 下载 Samba 20181123 版本源码..."
+            # 这是基于您提供的链接，实际是 samba-4.1.14 版本
+            curl -L -o samba.tar.gz "https://github.com/Geeeeeker/samba-iOS/releases/download/v1.0/SMB20181123.zip"
+          fi
+          
+          echo "📦 解压Samba源码..."
+          tar -xzf samba.tar.gz --strip-components=1
+          rm samba.tar.gz
+
+      - name: 3. 设置Xcode环境
+        run: |
+          echo "🔧 设置Xcode环境..."
+          sudo xcode-select -switch /Applications/Xcode.app/Contents/Developer
+          echo "✅ 当前Xcode路径:"
+          xcode-select -p
+
+      - name: 4. 执行交叉编译
+        run: |
+          cd kxsmb
+          
+          # 设置交叉编译所需的环境变量
+          # 这些变量解决了博客中提到的第5个错误[reference:2]
+          export samba_cv_big_endian=no  
+          export samba_cv_little_endian=yes  
+          export samba_cv_CC_NEGATIVE_ENUM_VALUES=yes  
+          export libreplace_cv_HAVE_GETADDRINFO=no  
+          export samba_cv_HAVE_WRFILE_KEYTAB=no  
+          export smb_krb5_cv_enctype_to_string_takes_krb5_context_arg=no  
+          export smb_krb5_cv_enctype_to_string_takes_size_t_arg=yes  
+          export ac_cv_file__proc_sys_kernel_core_pattern=yes
+          
+          # 根据选择构建架构列表
+          ARCHS=""
+          if [ "${{ github.event.inputs.arch_armv7 }}" = "true" ]; then
+            ARCHS="$ARCHS armv7"
+          fi
+          if [ "${{ github.event.inputs.arch_arm64 }}" = "true" ]; then
+            ARCHS="$ARCHS arm64"
+          fi
+          # 如果都没选，默认只编译 arm64
+          if [ -z "$ARCHS" ]; then
+            ARCHS="arm64"
+          fi
+          
+          echo "🔨 开始编译以下架构: $ARCHS"
+          # 使用rake编译指定架构
+          rake build ARCHS="$ARCHS"
+
+      - name: 5. 打包编译产物
+        run: |
+          cd kxsmb
+          mkdir -p artifacts/lib
+          mkdir -p artifacts/include
+          
+          echo "📦 正在打包库文件和头文件..."
+          # 复制静态库文件
+          if [ -f samba/source3/bin/universal/libsmbclient.a ]; then
+            cp samba/source3/bin/universal/libsmbclient.a artifacts/lib/
+            cp samba/source3/bin/universal/libtalloc.a artifacts/lib/
+            cp samba/source3/bin/universal/libtevent.a artifacts/lib/
+            cp samba/source3/bin/universal/libtdb.a artifacts/lib/
+            cp samba/source3/bin/universal/libwbclient.a artifacts/lib/
+          else
+            echo "⚠️ 未找到通用库，尝试复制单架构库..."
+            # 如果没有通用库，则复制第一个架构的库
+            for arch in armv7 arm64; do
+              if [ -f "samba/source3/bin/${arch}/libsmbclient.a" ]; then
+                cp samba/source3/bin/${arch}/libsmbclient.a artifacts/lib/
+                cp samba/source3/bin/${arch}/libtalloc.a artifacts/lib/
+                cp samba/source3/bin/${arch}/libtevent.a artifacts/lib/
+                cp samba/source3/bin/${arch}/libtdb.a artifacts/lib/
+                cp samba/source3/bin/${arch}/libwbclient.a artifacts/lib/
+                break
+              fi
+            done
+          fi
+          
+          # 复制头文件
+          cp samba/source3/include/libsmbclient.h artifacts/include/
+          cp samba/source3/include/smb_share_mode.h artifacts/include/
+          
+          # 创建版本信息文件
+          echo "Samba Version: ${{ github.event.inputs.samba_version }}" > artifacts/build_info.txt
+          echo "Architectures: $ARCHS" >> artifacts/build_info.txt
+          echo "Build Date: $(date)" >> artifacts/build_info.txt
+          
+          # 创建最终压缩包
+          cd artifacts
+          zip -r ../samba-ios-${{ github.event.inputs.samba_version }}-$ARCHS.zip .
+
+      - name: 6. 上传编译产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: samba-ios-libs-${{ github.event.inputs.samba_version }}
+          path: kxsmb/samba-ios-*.zip
+          retention-days: 30
