@@ -1,138 +1,124 @@
-name: Build iOS Samba (Official Source + Patch)
+name: Package kxsmb + Samba prebuilt libs
 
 on:
   workflow_dispatch:
     inputs:
-      architecture:
-        description: 'Target Architecture'
+      samba_version:
+        description: 'Choose prebuilt Samba version'
         required: true
-        default: 'arm64'
         type: choice
+        default: '4.0.26'
+        options:
+          - '4.0.26'       # 对应 samba_4.0.26_xcode12_macos11.01_20201213.7z
+          - '20181123'     # 对应 SMB20181123.zip
+      architecture:
+        description: 'Target architecture (default arm64)'
+        required: true
+        type: choice
+        default: 'arm64'
         options:
           - arm64
           - armv7
 
 jobs:
-  build:
+  package:
     runs-on: macos-latest
 
     steps:
-      - name: Install dependencies
-        run: |
-          brew install autoconf automake libtool
+      - name: Install p7zip (for .7z extraction)
+        run: brew install p7zip
 
-      - name: Download official Samba 4.0.26 source
+      - name: Download prebuilt Samba libraries
         run: |
-          curl -LO https://download.samba.org/pub/samba/stable/samba-4.0.26.tar.gz
-          tar -xzf samba-4.0.26.tar.gz
-          mv samba-4.0.26 samba
+          mkdir -p samba_prebuilt
+          cd samba_prebuilt
 
-      - name: Apply iOS fixes (system() -> popen())
-        run: |
-          cd samba
-          # 替换所有 system(cmd) 为 popen(cmd, "r")
-          find . -name "*.c" -exec sed -i '' 's/system(\([^)]*\))/popen(\1, "r")/g' {} \;
-          # 确保 popen 对应的 pclose 正确使用（如有必要）
-          echo "Patch applied."
-
-      - name: Set up cross-compilation environment
-        run: |
-          # 设置 SDK 路径和目标三元组
-          SDK=$(xcrun --sdk iphoneos --show-sdk-path)
-          if [ "${{ github.event.inputs.architecture }}" = "arm64" ]; then
-            HOST="aarch64-apple-darwin"
-            ARCH_FLAGS="-arch arm64 -miphoneos-version-min=11.0"
+          if [ "${{ github.event.inputs.samba_version }}" = "4.0.26" ]; then
+            echo "📥 Downloading Samba 4.0.26 (arm64 only)..."
+            curl -L -o samba.7z "https://github.com/Geeeeeker/samba-iOS/releases/download/v1.0/samba_4.0.26_xcode12_macos11.01_20201213.7z"
+            7z x samba.7z
+            rm samba.7z
           else
-            HOST="armv7-apple-darwin"
-            ARCH_FLAGS="-arch armv7 -miphoneos-version-min=9.0"
+            echo "📥 Downloading Samba 20181123 (includes armv7/arm64)..."
+            curl -L -o samba.zip "https://github.com/Geeeeeker/samba-iOS/releases/download/v1.0/SMB20181123.zip"
+            unzip -q samba.zip
+            rm samba.zip
           fi
 
-          export CC="$(xcrun --find clang)"
-          export CXX="$(xcrun --find clang++)"
-          export CFLAGS="-isysroot $SDK $ARCH_FLAGS"
-          export LDFLAGS="-isysroot $SDK $ARCH_FLAGS"
+          # 清理 macOS 元数据
+          find . -name ".DS_Store" -delete
 
-          # 交叉编译预设变量
-          export samba_cv_big_endian=no
-          export samba_cv_little_endian=yes
-          export samba_cv_CC_NEGATIVE_ENUM_VALUES=yes
-          export libreplace_cv_HAVE_GETADDRINFO=no
-          export samba_cv_HAVE_WRFILE_KEYTAB=no
-          export smb_krb5_cv_enctype_to_string_takes_krb5_context_arg=no
-          export smb_krb5_cv_enctype_to_string_takes_size_t_arg=yes
-          export ac_cv_file__proc_sys_kernel_core_pattern=yes
-
-          # 写入 GITHUB_ENV 供后续步骤使用
-          echo "SDK=$SDK" >> $GITHUB_ENV
-          echo "HOST=$HOST" >> $GITHUB_ENV
-          echo "ARCH_FLAGS=$ARCH_FLAGS" >> $GITHUB_ENV
-          echo "CC=$CC" >> $GITHUB_ENV
-          echo "CXX=$CXX" >> $GITHUB_ENV
-          echo "CFLAGS=$CFLAGS" >> $GITHUB_ENV
-          echo "LDFLAGS=$LDFLAGS" >> $GITHUB_ENV
-          echo "samba_cv_big_endian=no" >> $GITHUB_ENV
-          echo "samba_cv_little_endian=yes" >> $GITHUB_ENV
-          echo "samba_cv_CC_NEGATIVE_ENUM_VALUES=yes" >> $GITHUB_ENV
-          echo "libreplace_cv_HAVE_GETADDRINFO=no" >> $GITHUB_ENV
-          echo "samba_cv_HAVE_WRFILE_KEYTAB=no" >> $GITHUB_ENV
-          echo "smb_krb5_cv_enctype_to_string_takes_krb5_context_arg=no" >> $GITHUB_ENV
-          echo "smb_krb5_cv_enctype_to_string_takes_size_t_arg=yes" >> $GITHUB_ENV
-          echo "ac_cv_file__proc_sys_kernel_core_pattern=yes" >> $GITHUB_ENV
-
-      - name: Configure Samba
+      - name: Download kxsmb Objective-C wrapper files
         run: |
-          cd samba
-          ./configure \
-            --host=$HOST \
-            --target=$HOST \
-            --disable-shared \
-            --enable-static \
-            --disable-cups \
-            --disable-iprint \
-            --disable-pie \
-            --without-pam \
-            --without-winbind \
-            --without-ads \
-            --without-ldap \
-            --without-acl-support \
-            --without-utmp \
-            --without-sendfile-support \
-            --without-dnsupdate \
-            --without-automount \
-            --without-systemd \
-            --without-dmapi \
-            --without-fam \
-            --without-gpgme \
-            --without-json \
-            --without-lttng \
-            --without-ntdb \
-            --without-regedit \
-            --without-aio-support \
-            --without-quotas \
-            --without-syslog \
-            --prefix=$(pwd)/install
+          mkdir -p kxsmb_wrapper
+          cd kxsmb_wrapper
 
-      - name: Build libsmbclient
-        run: |
-          cd samba/source3
-          make libsmbclient
+          echo "📥 Downloading kxsmb wrapper files..."
+          curl -L -o KxSMBProvider.h "https://raw.githubusercontent.com/kolyvan/kxsmb/master/kxsmb/KxSMBProvider.h"
+          curl -L -o KxSMBProvider.m "https://raw.githubusercontent.com/kolyvan/kxsmb/master/kxsmb/KxSMBProvider.m"
+          curl -L -o KxSMBItem.h "https://raw.githubusercontent.com/kolyvan/kxsmb/master/kxsmb/KxSMBItem.h"
+          curl -L -o KxSMBItem.m "https://raw.githubusercontent.com/kolyvan/kxsmb/master/kxsmb/KxSMBItem.m"
 
-      - name: Collect artifacts
+      - name: Organize final package
         run: |
-          mkdir -p artifacts/libs
-          cd samba
-          # 收集生成的 .a 文件
-          find . -name "*.a" -exec cp {} ../artifacts/libs/ \;
+          ARCH="${{ github.event.inputs.architecture }}"
+          PACKAGE_DIR="kxsmb_samba_${ARCH}_${{ github.event.inputs.samba_version }}"
+          mkdir -p "$PACKAGE_DIR/libs"
+          mkdir -p "$PACKAGE_DIR/include"
+          mkdir -p "$PACKAGE_DIR/wrapper"
+
+          # 复制静态库（如果预编译包中有多架构目录，优先使用指定架构）
+          if [ -d "samba_prebuilt/$ARCH" ]; then
+            cp samba_prebuilt/$ARCH/*.a "$PACKAGE_DIR/libs/"
+          else
+            cp samba_prebuilt/*.a "$PACKAGE_DIR/libs/" 2>/dev/null || true
+          fi
+
           # 复制头文件
-          cp source3/include/libsmbclient.h ../artifacts/libs/
-          cp source3/include/smb_share_mode.h ../artifacts/libs/ 2>/dev/null || true
-          # 打包
-          cd ../artifacts
-          tar -czf ../samba-ios-${{ github.event.inputs.architecture }}.tar.gz .
+          cp samba_prebuilt/*.h "$PACKAGE_DIR/include/" 2>/dev/null || true
+
+          # 复制 kxsmb 封装文件
+          cp kxsmb_wrapper/* "$PACKAGE_DIR/wrapper/"
+
+          # 创建 README
+          cat > "$PACKAGE_DIR/README.txt" << EOF
+          ==============================================
+          kxsmb + Samba Prebuilt for iOS
+          ==============================================
+
+          Version: Samba ${{ github.event.inputs.samba_version }}
+          Architecture: $ARCH
+
+          📁 Directory structure:
+            libs/        - Static libraries (.a) and some headers
+            include/     - Additional C headers for libsmbclient
+            wrapper/     - kxsmb Objective-C wrapper files
+
+          🛠 Integration steps:
+          1. Drag the entire folder into your Xcode project.
+          2. In Build Phases -> Link Binary With Libraries, add:
+             - libresolv.tbd
+             - libz.tbd
+          3. In Build Settings, set "Header Search Paths" to:
+             \$(PROJECT_DIR)/$PACKAGE_DIR/include
+             \$(PROJECT_DIR)/$PACKAGE_DIR/libs
+             (or use recursive search)
+          4. Import and use:
+             #import "KxSMBProvider.h"
+
+          📦 Files included:
+          $(ls -R "$PACKAGE_DIR")
+
+          Generated by GitHub Actions on $(date)
+          ==============================================
+          EOF
+
+          # 打包为 zip
+          zip -r "${PACKAGE_DIR}.zip" "$PACKAGE_DIR"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: samba-ios-${{ github.event.inputs.architecture }}
-          path: samba-ios-${{ github.event.inputs.architecture }}.tar.gz
+          name: kxsmb-samba-${{ github.event.inputs.architecture }}-${{ github.event.inputs.samba_version }}
+          path: "*.zip"
           retention-days: 30
