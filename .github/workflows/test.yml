@@ -16,7 +16,7 @@ on:
 
 jobs:
   build:
-    runs-on: macos-13    # 注意：正确写法是 macos-13，无后缀
+    runs-on: macos-latest    # 注意：正确写法是 macos-13，无后缀
 
     steps:
       - name: 检出 kxsmb 封装库
