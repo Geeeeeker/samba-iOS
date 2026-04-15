@@ -1,21 +1,91 @@
-      - name: Build .deb package
-        run: |
-          mkdir -p deb/DEBIAN
-          mkdir -p deb/usr/local/bin
-          cp ios_bin/smbclient deb/usr/local/bin/
-          cat > deb/DEBIAN/control << EOF
-          Package: com.yourname.smbclient
-          Name: smbclient for iOS
-          Version: 4.0.26
-          Architecture: iphoneos-arm
-          Description: Samba smbclient command line tool
-          Maintainer: Your Name
-          Section: Networking
-          EOF
-          dpkg-deb -b deb smbclient-ios-arm64.deb
+name: Build smbclient for iOS (arm64)
 
-      - name: Upload .deb
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Install dependencies
+        run: brew install autoconf automake libtool pkg-config
+
+      - name: Download Samba source (4.0.26)
+        run: |
+          curl -LO https://download.samba.org/pub/samba/stable/samba-4.0.26.tar.gz
+          tar -xzf samba-4.0.26.tar.gz
+          mv samba-4.0.26 samba
+
+      - name: Apply iOS fixes (system() -> popen())
+        run: |
+          cd samba
+          # 替换所有 system() 为 popen()
+          find . -name "*.c" -exec sed -i '' 's/system(\([^)]*\))/popen(\1, "r")/g' {} \;
+
+      - name: Configure cross-compilation for iOS arm64
+        run: |
+          export SDK=$(xcrun --sdk iphoneos --show-sdk-path)
+          export CC="$(xcrun --find clang) -isysroot $SDK -arch arm64 -miphoneos-version-min=10.0"
+          export CFLAGS="-isysroot $SDK -arch arm64 -miphoneos-version-min=10.0 -D__IPHONE_OS_VERSION_MIN_REQUIRED=100000"
+          export LDFLAGS="-isysroot $SDK -arch arm64 -miphoneos-version-min=10.0"
+
+          # 交叉编译预设
+          export samba_cv_big_endian=no
+          export samba_cv_little_endian=yes
+          export samba_cv_CC_NEGATIVE_ENUM_VALUES=yes
+          export libreplace_cv_HAVE_GETADDRINFO=no
+          export samba_cv_HAVE_WRFILE_KEYTAB=no
+          export smb_krb5_cv_enctype_to_string_takes_krb5_context_arg=no
+          export smb_krb5_cv_enctype_to_string_takes_size_t_arg=yes
+          export ac_cv_file__proc_sys_kernel_core_pattern=yes
+
+          cd samba
+          ./configure \
+            --host=aarch64-apple-darwin \
+            --target=aarch64-apple-darwin \
+            --disable-shared \
+            --enable-static \
+            --disable-cups \
+            --disable-iprint \
+            --without-pam \
+            --without-winbind \
+            --without-ads \
+            --without-ldap \
+            --without-acl-support \
+            --without-utmp \
+            --without-sendfile-support \
+            --without-dnsupdate \
+            --without-automount \
+            --without-systemd \
+            --without-dmapi \
+            --without-fam \
+            --without-gpgme \
+            --without-json \
+            --without-lttng \
+            --without-ntdb \
+            --without-regedit \
+            --without-aio-support \
+            --without-quotas \
+            --without-syslog \
+            --prefix=$(pwd)/install
+
+      - name: Build smbclient
+        run: |
+          cd samba/source3
+          make smbclient
+
+      - name: Prepare binary for iOS
+        run: |
+          mkdir -p ios_bin
+          cp samba/source3/bin/smbclient ios_bin/
+          # 去除调试符号，减小体积
+          strip ios_bin/smbclient
+          chmod +x ios_bin/smbclient
+
+      - name: Upload smbclient binary
         uses: actions/upload-artifact@v4
         with:
-          name: smbclient-ios-arm64-deb
-          path: smbclient-ios-arm64.deb
+          name: smbclient-ios-arm64
+          path: ios_bin/smbclient
+          retention-days: 90
